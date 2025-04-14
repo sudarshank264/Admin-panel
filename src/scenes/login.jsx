@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import {
   TextField,
   Button,
@@ -11,7 +10,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import api from "../api";
-import { BASE_URL } from "./../data/constants.js";
+import { BASE_URL } from "../data/constants.js";
 
 const Login = ({ setIsAuth }) => {
   const [email, setEmail] = useState("");
@@ -31,24 +30,34 @@ const Login = ({ setIsAuth }) => {
     try {
       setLoading(true);
 
-      const response = await api.post(BASE_URL+"/auth/admin/login", {
-        email: email,
-        password:password,
+      console.log("Sending login request to:", `${BASE_URL}/auth/admin/login`);
+
+      const response = await api.post(`${BASE_URL}/auth/admin/login`, {
+        email,
+        password,
       });
 
-      const token = response?.data?.token;
+      console.log("Full login response:", response);
+
+      // Adjust this depending on your backend response shape
+      const token =
+        response?.data?.accessToken ||
+        response?.data?.token ||
+        response?.data?.data?.accessToken ||
+        response?.data?.data?.token;
 
       if (token) {
-        localStorage.setItem("auth", token);
-        setIsAuth(true);
-        navigate("/");
+        localStorage.setItem("authToken", token); // Store token in localStorage
+        setIsAuth(true); // Update auth state
+        navigate("/"); // Redirect to dashboard/home
       } else {
         alert("Login failed: Token not received.");
       }
     } catch (error) {
       console.error("Login error:", error);
+
       alert(
-        error.response?.data?.message ||
+        error?.response?.data?.message ||
           "Login failed. Please check your credentials."
       );
     } finally {

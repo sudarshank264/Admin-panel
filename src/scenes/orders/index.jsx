@@ -1,92 +1,51 @@
 import {
-  Box,
-  Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  IconButton,
-  Button,
-  Grid,
-  Card,
-  CardContent,
-  MenuItem,
-  Select,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box, Paper, Typography, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, TextField, IconButton, Button, Grid,
+  Card, CardContent, MenuItem, Select, Chip, Dialog,
+  DialogTitle, DialogContent, DialogActions
 } from "@mui/material";
-import { Edit, Visibility } from "@mui/icons-material";
-import { useState } from "react";
+import { Edit, Visibility, Delete } from "@mui/icons-material";
+import { useEffect, useState } from "react";
 import Header from "../../components/Header";
+import axios from "axios";
 
-const initialOrders = [
-  {
-    id: 101,
-    user: "Rohan Gupta",
-    product: "Organic Fertilizer",
-    quantity: 2,
-    payment: "Paid",
-    status: "Processing",
-  },
-  {
-    id: 102,
-    user: "Anjali Mehta",
-    product: "Hybrid Seeds",
-    quantity: 5,
-    payment: "Pending",
-    status: "Shipped",
-  },
-  {
-    id: 103,
-    user: "Karan Singh",
-    product: "Pesticide",
-    quantity: 1,
-    payment: "Paid",
-    status: "Delivered",
-  },
-  {
-    id: 104,
-    user: "Simran Kaur",
-    product: "Irrigation Kit",
-    quantity: 3,
-    payment: "Refunded",
-    status: "Returned",
-  },
-];
+import { BASE_URL } from "../../data/constants";
 
-const statuses = [
-  "Processing",
-  "Shipped",
-  "Delivered",
-  "Returned",
-  "Cancelled",
-];
-const paymentStatuses = ["Paid", "Pending", "Refunded"];
+const statuses = ["REQUESTED", "SHIPPED", "DELIVERED", "FAILED"];
+const paymentStatuses = ["INITIATED", "PAID", "PENDING", "REFUNDED"];
 
 const OrderManagement = () => {
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [editOrder, setEditOrder] = useState(null);
+  const [viewOrder, setViewOrder] = useState(null);
+
+  const token = localStorage.getItem("authToken");
+
+  const fetchOrders = async () => {
+    try {
+      const response = await axios.get(`${BASE_URL}/orders/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrders(response.data);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    }
+  };
+
+  useEffect(() => { fetchOrders(); }, []);
 
   const handleSearch = (e) => setSearch(e.target.value);
   const handleStatusFilterChange = (e) => setStatusFilter(e.target.value);
   const handlePaymentFilterChange = (e) => setPaymentFilter(e.target.value);
 
-  const filteredOrders = orders.filter(
-    (order) =>
-      order.user.toLowerCase().includes(search.toLowerCase()) &&
-      (statusFilter ? order.status === statusFilter : true) &&
-      (paymentFilter ? order.payment === paymentFilter : true)
+  const filteredOrders = orders.filter((order) =>
+    (!search || order.userName?.toLowerCase().includes(search.toLowerCase())) &&
+    (statusFilter ? order.orderStatus === statusFilter : true) &&
+    (paymentFilter ? order.paymentStatus === paymentFilter : true)
   );
 
   const handleEditOrder = (order) => {
@@ -94,95 +53,95 @@ const OrderManagement = () => {
     setOpenDialog(true);
   };
 
+  const handleViewOrder = async (orderId) => {
+    try {
+      const response = await axios.get(`${BASE_URL}/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setViewOrder(response.data);
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm("Are you sure you want to delete this order?")) return;
+    try {
+      await axios.delete(`${BASE_URL}/orders/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchOrders();
+    } catch (error) {
+      console.error("Error deleting order:", error);
+    }
+  };
+
   const handleDialogClose = () => {
     setOpenDialog(false);
     setEditOrder(null);
   };
 
-  const handleSaveOrder = () => {
-    if (editOrder) {
-      setOrders((prev) =>
-        prev.map((order) => (order.id === editOrder.id ? editOrder : order))
-      );
+  const handleSaveOrder = async () => {
+    try {
+      const payload = { status: editOrder.orderStatus };
+      await axios.put(`${BASE_URL}/orders/${editOrder.orderId}/status`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchOrders();
+      handleDialogClose();
+    } catch (error) {
+      console.error("Failed to update order:", error);
     }
-    setOpenDialog(false);
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "Delivered":
-        return "success";
-      case "Processing":
-        return "warning";
-      case "Shipped":
-        return "info";
-      case "Returned":
-        return "error";
-      default:
-        return "default";
+      case "DELIVERED": return "success";
+      case "REQUESTED": return "warning";
+      case "SHIPPED": return "info";
+      case "FAILED": return "error";
+      default: return "default";
     }
   };
 
   const getPaymentColor = (payment) => {
     switch (payment) {
-      case "Paid":
-        return "success";
-      case "Pending":
-        return "warning";
-      case "Refunded":
-        return "error";
-      default:
-        return "default";
+      case "PAID": return "success";
+      case "INITIATED": return "warning";
+      case "REFUNDED": return "error";
+      default: return "default";
     }
   };
 
   return (
-    <Box
-      sx={{
-        ml: { xs: 0, md: "260px" },
-        p: 4,
-        backgroundColor: "",
-        minHeight: "100vh",
-      }}
-    >
-      <Header
-        title="Order Management"
-        subtitle="Monitor and process user orders effectively"
-      />
+    <Box sx={{ ml: { xs: 0, md: "260px" }, p: 4, minHeight: "100vh" }}>
+      <Header title="Order Management" subtitle="Monitor and process user orders effectively" />
 
       <Grid container spacing={2} mt={1}>
         <Grid item xs={12} md={4}>
-          <Card
-            sx={{ backgroundColor: "#ffffff", borderRadius: 3, boxShadow: 3 }}
-          >
+          <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
             <CardContent>
               <Typography variant="h6">Total Orders</Typography>
-              <Typography variant="h4" color="primary.main">
-                {filteredOrders.length}
-              </Typography>
+              <Typography variant="h4" color="primary.main">{filteredOrders.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card
-            sx={{ backgroundColor: "#ffffff", borderRadius: 3, boxShadow: 3 }}
-          >
+          <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
             <CardContent>
               <Typography variant="h6">Pending Orders</Typography>
               <Typography variant="h4" color="warning.main">
-                {filteredOrders.filter((o) => o.status === "Processing").length}
+                {filteredOrders.filter((o) => o.orderStatus === "PROCESSING").length}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card
-            sx={{ backgroundColor: "#ffffff", borderRadius: 3, boxShadow: 3 }}
-          >
+          <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
             <CardContent>
               <Typography variant="h6">Completed Orders</Typography>
               <Typography variant="h4" color="success.main">
-                {filteredOrders.filter((o) => o.status === "Delivered").length}
+                {filteredOrders.filter((o) => o.orderStatus === "DELIVERED").length}
               </Typography>
             </CardContent>
           </Card>
@@ -191,108 +150,46 @@ const OrderManagement = () => {
 
       <Grid container spacing={2} mt={4}>
         <Grid item xs={12} md={4}>
-          <TextField
-            label="Search by User"
-            fullWidth
-            variant="outlined"
-            size="small"
-            value={search}
-            onChange={handleSearch}
-          />
+          <TextField label="Search by User" fullWidth size="small" value={search} onChange={handleSearch} />
         </Grid>
         <Grid item xs={12} md={4}>
-          <Select
-            fullWidth
-            size="small"
-            displayEmpty
-            value={statusFilter}
-            onChange={handleStatusFilterChange}
-          >
+          <Select fullWidth size="small" displayEmpty value={statusFilter} onChange={handleStatusFilterChange}>
             <MenuItem value="">All Statuses</MenuItem>
-            {statuses.map((status) => (
-              <MenuItem key={status} value={status}>
-                {status}
-              </MenuItem>
-            ))}
+            {statuses.map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>) }
           </Select>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Select
-            fullWidth
-            size="small"
-            displayEmpty
-            value={paymentFilter}
-            onChange={handlePaymentFilterChange}
-          >
+          <Select fullWidth size="small" displayEmpty value={paymentFilter} onChange={handlePaymentFilterChange}>
             <MenuItem value="">All Payment Status</MenuItem>
-            {paymentStatuses.map((payment) => (
-              <MenuItem key={payment} value={payment}>
-                {payment}
-              </MenuItem>
-            ))}
+            {paymentStatuses.map((payment) => <MenuItem key={payment} value={payment}>{payment}</MenuItem>) }
           </Select>
         </Grid>
       </Grid>
 
-      <TableContainer
-        component={Paper}
-        sx={{ mt: 4, borderRadius: 3, boxShadow: 2 }}
-      >
+      <TableContainer sx={{ mt: 4, borderRadius: 3, boxShadow: 2 }}>
         <Table>
-          <TableHead sx={{ backgroundColor: "#e3f2fd" }}>
+          <TableHead>
             <TableRow>
-              <TableCell>
-                <strong>Order ID</strong>
-              </TableCell>
-              <TableCell>
-                <strong>User</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Product</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Qty</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Payment</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Status</strong>
-              </TableCell>
-              <TableCell>
-                <strong>Actions</strong>
-              </TableCell>
+              <TableCell><strong>Order ID</strong></TableCell>
+              <TableCell><strong>User</strong></TableCell>
+              <TableCell><strong>Agent ID</strong></TableCell>
+              <TableCell><strong>Payment</strong></TableCell>
+              <TableCell><strong>Status</strong></TableCell>
+              <TableCell><strong>Actions</strong></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredOrders.map((order) => (
-              <TableRow key={order.id} hover>
-                <TableCell>{order.id}</TableCell>
-                <TableCell>{order.user}</TableCell>
-                <TableCell>{order.product}</TableCell>
-                <TableCell>{order.quantity}</TableCell>
+              <TableRow key={order.orderId} hover>
+                <TableCell>{order.orderId}</TableCell>
+                <TableCell>{order.userName}</TableCell>
+                <TableCell>{order.agentId}</TableCell>
+                <TableCell><Chip label={order.paymentStatus} color={getPaymentColor(order.paymentStatus)} /></TableCell>
+                <TableCell><Chip label={order.orderStatus} color={getStatusColor(order.orderStatus)} /></TableCell>
                 <TableCell>
-                  <Chip
-                    label={order.payment}
-                    color={getPaymentColor(order.payment)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={order.status}
-                    color={getStatusColor(order.status)}
-                  />
-                </TableCell>
-                <TableCell>
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleEditOrder(order)}
-                  >
-                    <Edit />
-                  </IconButton>
-                  <IconButton color="info">
-                    <Visibility />
-                  </IconButton>
+                  <IconButton color="primary" onClick={() => handleEditOrder(order)}><Edit /></IconButton>
+                  <IconButton color="info" onClick={() => handleViewOrder(order.orderId)}><Visibility /></IconButton>
+                  <IconButton color="error" onClick={() => handleDeleteOrder(order.orderId)}><Delete /></IconButton>
                 </TableCell>
               </TableRow>
             ))}
@@ -301,46 +198,38 @@ const OrderManagement = () => {
       </TableContainer>
 
       <Dialog open={openDialog} onClose={handleDialogClose} fullWidth>
-        <DialogTitle>Edit Order</DialogTitle>
-        <DialogContent
-          sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}
-        >
+        <DialogTitle>Edit Order Status</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           <Select
             fullWidth
-            value={editOrder?.status || ""}
-            onChange={(e) =>
-              setEditOrder({ ...editOrder, status: e.target.value })
-            }
+            value={editOrder?.orderStatus || ""}
+            onChange={(e) => setEditOrder({ ...editOrder, orderStatus: e.target.value })}
           >
             <MenuItem value="">Select Status</MenuItem>
-            {statuses.map((status) => (
-              <MenuItem key={status} value={status}>
-                {status}
-              </MenuItem>
-            ))}
-          </Select>
-          <Select
-            fullWidth
-            value={editOrder?.payment || ""}
-            onChange={(e) =>
-              setEditOrder({ ...editOrder, payment: e.target.value })
-            }
-          >
-            <MenuItem value="">Select Payment</MenuItem>
-            {paymentStatuses.map((payment) => (
-              <MenuItem key={payment} value={payment}>
-                {payment}
-              </MenuItem>
-            ))}
+            {statuses.map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>) }
           </Select>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDialogClose} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleSaveOrder} variant="contained" color="primary">
-            Save
-          </Button>
+          <Button onClick={handleDialogClose} color="secondary">Cancel</Button>
+          <Button onClick={handleSaveOrder} variant="contained" color="primary">Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!viewOrder} onClose={() => setViewOrder(null)} fullWidth>
+        <DialogTitle>Order Details</DialogTitle>
+        <DialogContent>
+          {viewOrder && (
+            <>
+              <Typography><strong>Order ID:</strong> {viewOrder.orderId}</Typography>
+              <Typography><strong>User:</strong> {viewOrder.userName}</Typography>
+              <Typography><strong>Agent ID:</strong> {viewOrder.agentId}</Typography>
+              <Typography><strong>Payment:</strong> {viewOrder.paymentStatus}</Typography>
+              <Typography><strong>Status:</strong> {viewOrder.orderStatus}</Typography>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewOrder(null)} variant="contained">Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

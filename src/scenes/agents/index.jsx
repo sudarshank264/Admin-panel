@@ -1,81 +1,79 @@
 import {
-  Box,
-  Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  IconButton,
-  Button,
-  Grid,
-  Card,
-  MenuItem,
-  Select,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
+  Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TextField, IconButton, Button, Grid, Card, MenuItem, Select, Dialog, DialogTitle, DialogContent,
+  DialogActions, Chip
 } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "../../components/Header";
-
-const initialAgents = [
-  { id: 1, name: "Amit Kumar", region: "North", rating: 4.5, status: "Active" },
-  { id: 2, name: "Suman Das", region: "South", rating: 3.9, status: "Active" },
-  {
-    id: 3,
-    name: "Rajesh Singh",
-    region: "West",
-    rating: 4.2,
-    status: "Inactive",
-  },
-  { id: 4, name: "Neha Sharma", region: "East", rating: 4.8, status: "Active" },
-];
+import { BASE_URL } from "../../data/constants";
+import axios from "axios";
 
 const regions = ["North", "South", "East", "West"];
 
 const AgentManagement = () => {
-  const [agents, setAgents] = useState(initialAgents);
+  const [agents, setAgents] = useState([]);
   const [search, setSearch] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [editAgent, setEditAgent] = useState(null);
 
+  const fetchAgents = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await axios.get(`${BASE_URL}/admin/agents`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (Array.isArray(response.data)) {
+        setAgents(response.data);
+      } else if (Array.isArray(response.data.agents)) {
+        setAgents(response.data.agents);
+      } else {
+        setAgents([]);
+      }
+    } catch (error) {
+      console.error("Error fetching agents:", error);
+      setAgents([]);
+    }
+  };
+
+  useEffect(() => { fetchAgents(); }, []);
+
   const handleSearch = (e) => setSearch(e.target.value);
   const handleFilterChange = (e) => setRegionFilter(e.target.value);
 
   const filteredAgents = agents.filter((agent) => {
-    const matchesSearch = agent.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const matchesRegion = regionFilter ? agent.region === regionFilter : true;
+    const matchesSearch = agent.name?.toLowerCase().includes(search.toLowerCase());
+    const matchesRegion = regionFilter ? agent.location === regionFilter : true;
     return matchesSearch && matchesRegion;
   });
 
   const handleAddAgent = () => {
-    setEditAgent({
-      id: Date.now(),
-      name: "",
-      region: "",
-      rating: "",
-      status: "Active",
-    });
+    setEditAgent({ name: "", region: "", phoneNumber: "", status: "Active" });
     setOpenDialog(true);
   };
 
   const handleEditAgent = (agent) => {
-    setEditAgent(agent);
+    setEditAgent({
+      userId: agent.userId,
+      name: agent.name || "",
+      region: agent.location || "",
+      phoneNumber: agent.mobileNumber || "",
+      status: agent.active ? "Active" : "Inactive"
+    });
     setOpenDialog(true);
   };
 
-  const handleDeleteAgent = (id) => {
-    setAgents(agents.filter((agent) => agent.id !== id));
+  const handleDeleteAgent = async (id) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      await axios.delete(`${BASE_URL}/admin/agents/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchAgents();
+    } catch (error) {
+      console.error("Error deleting agent:", error);
+    }
   };
 
   const handleDialogClose = () => {
@@ -83,77 +81,85 @@ const AgentManagement = () => {
     setEditAgent(null);
   };
 
-  const handleSaveAgent = () => {
-    if (editAgent.id) {
-      setAgents((prev) => {
-        const exists = prev.find((a) => a.id === editAgent.id);
-        return exists
-          ? prev.map((a) => (a.id === editAgent.id ? editAgent : a))
-          : [...prev, editAgent];
-      });
+  const handleSaveAgent = async () => {
+    if (!editAgent?.name?.trim() || !editAgent?.region?.trim() || !editAgent?.phoneNumber?.trim()) {
+      alert("Please fill in Name, Region, and Mobile Number.");
+      return;
     }
-    setOpenDialog(false);
+
+    try {
+      const token = localStorage.getItem("authToken");
+      const agentData = {
+        name: editAgent.name.trim(),
+        location: editAgent.region.trim(), // Correct key mapping
+        phoneNumber: editAgent.phoneNumber.trim(),
+        active: editAgent.status === "Active" // Convert string to boolean
+      };
+
+      if (editAgent.userId) {
+        await axios.put(`${BASE_URL}/admin/agents/${editAgent.userId}`, agentData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await axios.post(`${BASE_URL}/admin/agents`, agentData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+
+      fetchAgents();
+      handleDialogClose();
+    } catch (error) {
+      console.error("Error saving agent:", error);
+      alert("Failed to save agent. Check console for details.");
+    }
   };
 
   return (
-    <Box
-      sx={{
-        p: 3,
-        ml: { xs: 0, md: "260px" },
-        width: { xs: "100%", md: "calc(100% - 260px)" },
-        minHeight: "100vh",
-        backgroundColor: "#0f0f0f",
-        color: "white",
-      }}
-    >
+    <Box sx={{
+      p: 3,
+      ml: { xs: 0, md: "260px" },
+      width: { xs: "100%", md: "calc(100% - 260px)" },
+      minHeight: "100vh",
+      backgroundColor: "#0f0f0f",
+      color: "white"
+    }}>
       <Header
         title="Agent Management"
-        subtitle="Manage and track agents effectively"
+        subtitle="Admins oversee the recruitment, onboarding, and performance management of agents."
       />
 
       <Grid container spacing={3} mt={3}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              backgroundColor: "#1a1a1a",
-              color: "#fff",
-              textAlign: "center",
-              p: 3,
-              borderRadius: "16px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-            }}
-          >
+          <Card sx={{
+            backgroundColor: "#1a1a1a",
+            color: "#fff",
+            textAlign: "center",
+            p: 3,
+            borderRadius: "16px",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
+          }}>
             <Typography variant="h6">Total Agents</Typography>
-            <Typography variant="h3" color="primary">
-              {agents.length}
-            </Typography>
+            <Typography variant="h3" color="primary">{agents.length}</Typography>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card
-            sx={{
-              backgroundColor: "#1a1a1a",
-              color: "#fff",
-              textAlign: "center",
-              p: 3,
-              borderRadius: "16px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-            }}
-          >
+          <Card sx={{
+            backgroundColor: "#1a1a1a",
+            color: "#fff",
+            textAlign: "center",
+            p: 3,
+            borderRadius: "16px",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
+          }}>
             <Typography variant="h6">Active Agents</Typography>
             <Typography variant="h3" color="success.main">
-              {agents.filter((a) => a.status === "Active").length}
+              {agents.filter((a) => a.active).length}
             </Typography>
           </Card>
         </Grid>
       </Grid>
 
-      <Box
-        mt={4}
-        display="flex"
-        flexDirection={{ xs: "column", md: "row" }}
-        gap={2}
-      >
+      <Box mt={4} display="flex" flexDirection={{ xs: "column", md: "row" }} gap={2}>
         <TextField
           label="Search by Agent Name"
           variant="outlined"
@@ -161,7 +167,10 @@ const AgentManagement = () => {
           fullWidth
           value={search}
           onChange={handleSearch}
-          sx={{ backgroundColor: "#1f1f1f", input: { color: "white" } }}
+          sx={{
+            backgroundColor: "#1f1f1f",
+            input: { color: "white" }
+          }}
         />
         <Select
           displayEmpty
@@ -173,9 +182,7 @@ const AgentManagement = () => {
         >
           <MenuItem value="">All Regions</MenuItem>
           {regions.map((reg) => (
-            <MenuItem key={reg} value={reg}>
-              {reg}
-            </MenuItem>
+            <MenuItem key={reg} value={reg}>{reg}</MenuItem>
           ))}
         </Select>
         <Button variant="contained" color="primary" onClick={handleAddAgent}>
@@ -183,48 +190,39 @@ const AgentManagement = () => {
         </Button>
       </Box>
 
-      <TableContainer
-        component={Paper}
-        sx={{
-          mt: 4,
-          borderRadius: "16px",
-          backgroundColor: "#1b1b1b",
-        }}
-      >
+      <TableContainer component={Paper} sx={{
+        mt: 4,
+        borderRadius: "16px",
+        backgroundColor: "#1b1b1b"
+      }}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell sx={{ color: "#ccc" }}>Name</TableCell>
               <TableCell sx={{ color: "#ccc" }}>Region</TableCell>
-              <TableCell sx={{ color: "#ccc" }}>Rating</TableCell>
+              <TableCell sx={{ color: "#ccc" }}>Mobile</TableCell>
               <TableCell sx={{ color: "#ccc" }}>Status</TableCell>
               <TableCell sx={{ color: "#ccc" }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredAgents.map((agent) => (
-              <TableRow key={agent.id} hover>
+              <TableRow key={agent.userId} hover>
                 <TableCell>{agent.name}</TableCell>
-                <TableCell>{agent.region}</TableCell>
-                <TableCell>{agent.rating}</TableCell>
+                <TableCell>{agent.location || "-"}</TableCell>
+                <TableCell>{agent.mobileNumber || "-"}</TableCell>
                 <TableCell>
                   <Chip
-                    label={agent.status}
-                    color={agent.status === "Active" ? "success" : "error"}
+                    label={agent.active ? "Active" : "Inactive"}
+                    color={agent.active ? "success" : "error"}
                     variant="outlined"
                   />
                 </TableCell>
                 <TableCell>
-                  <IconButton
-                    color="primary"
-                    onClick={() => handleEditAgent(agent)}
-                  >
+                  <IconButton color="primary" onClick={() => handleEditAgent(agent)}>
                     <Edit />
                   </IconButton>
-                  <IconButton
-                    color="error"
-                    onClick={() => handleDeleteAgent(agent.id)}
-                  >
+                  <IconButton color="error" onClick={() => handleDeleteAgent(agent.userId)}>
                     <Delete />
                   </IconButton>
                 </TableCell>
@@ -232,9 +230,7 @@ const AgentManagement = () => {
             ))}
             {filteredAgents.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center">
-                  No agents found.
-                </TableCell>
+                <TableCell colSpan={5} align="center">No agents found.</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -243,68 +239,50 @@ const AgentManagement = () => {
 
       <Dialog open={openDialog} onClose={handleDialogClose} fullWidth>
         <DialogTitle sx={{ backgroundColor: "#1a1a1a", color: "white" }}>
-          {editAgent?.id ? "Edit Agent" : "Add Agent"}
+          {editAgent?.userId ? "Edit Agent" : "Add Agent"}
         </DialogTitle>
-        <DialogContent
-          sx={{
-            backgroundColor: "#121212",
-            color: "white",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
+        <DialogContent sx={{
+          backgroundColor: "#121212",
+          color: "white",
+          display: "flex",
+          flexDirection: "column",
+          gap: 2
+        }}>
           <TextField
             label="Agent Name"
             fullWidth
             value={editAgent?.name || ""}
-            onChange={(e) =>
-              setEditAgent({ ...editAgent, name: e.target.value })
-            }
+            onChange={(e) => setEditAgent({ ...editAgent, name: e.target.value })}
           />
           <Select
             displayEmpty
             fullWidth
             value={editAgent?.region || ""}
-            onChange={(e) =>
-              setEditAgent({ ...editAgent, region: e.target.value })
-            }
+            onChange={(e) => setEditAgent({ ...editAgent, region: e.target.value })}
           >
             <MenuItem value="">Select Region</MenuItem>
             {regions.map((reg) => (
-              <MenuItem key={reg} value={reg}>
-                {reg}
-              </MenuItem>
+              <MenuItem key={reg} value={reg}>{reg}</MenuItem>
             ))}
           </Select>
           <TextField
-            label="Rating (1-5)"
-            type="number"
+            label="Mobile Number"
             fullWidth
-            inputProps={{ min: 1, max: 5, step: 0.1 }}
-            value={editAgent?.rating || ""}
-            onChange={(e) =>
-              setEditAgent({ ...editAgent, rating: parseFloat(e.target.value) })
-            }
+            value={editAgent?.phoneNumber || ""}
+            onChange={(e) => setEditAgent({ ...editAgent, phoneNumber: e.target.value })}
           />
           <Select
             fullWidth
-            value={editAgent?.status || ""}
-            onChange={(e) =>
-              setEditAgent({ ...editAgent, status: e.target.value })
-            }
+            value={editAgent?.status || "Active"}
+            onChange={(e) => setEditAgent({ ...editAgent, status: e.target.value })}
           >
             <MenuItem value="Active">Active</MenuItem>
             <MenuItem value="Inactive">Inactive</MenuItem>
           </Select>
         </DialogContent>
         <DialogActions sx={{ backgroundColor: "#1a1a1a" }}>
-          <Button onClick={handleDialogClose} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleSaveAgent} variant="contained" color="primary">
-            Save
-          </Button>
+          <Button onClick={handleDialogClose} color="secondary">Cancel</Button>
+          <Button onClick={handleSaveAgent} variant="contained" color="primary">Save</Button>
         </DialogActions>
       </Dialog>
     </Box>

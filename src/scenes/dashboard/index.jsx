@@ -1,87 +1,58 @@
 import { useEffect, useState } from "react";
-import { BASE_URL } from "../../data/constants.js";
-
-import {
-  Box,
-  Paper,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from "@mui/material";
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-} from "recharts";
+import { Box, Paper, Typography, Grid, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import Header from "../../components/Header";
-
 
 const Dashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [orders, setOrders] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [products, setProducts] = useState([]);
   const [salesData, setSalesData] = useState([]);
 
-  // Optional reload on mount once
-  useEffect(() => {
-    const reloaded = sessionStorage.getItem("dashboardReloaded");
-    if (!reloaded) {
-      setTimeout(() => {
-        sessionStorage.setItem("dashboardReloaded", "true");
-        window.location.reload();
-      }, 2000);
-    }
-  }, []);
+  const authToken = localStorage.getItem("authToken");
 
-  // Fetch dashboard data
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
       try {
-        const token = localStorage.getItem("auth");
+        const headers = { Authorization: `Bearer ${authToken}` };
 
-        const response = await fetch(`${BASE_URL}/auth/admin/login`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        // Fetch all users
+        const agentResponse = await fetch(`http://35.244.11.78:9101/api/user/`, { headers });
+        const agentJson = await agentResponse.json();
+        const allAgents = agentJson.filter(user => user.role === "AGENT");
 
-        if (!response.ok) throw new Error("Failed to fetch dashboard data");
+        // Fetch all products
+        const productResponse = await fetch(`http://35.244.11.78:9101/api/products`, { headers });
+        const productJson = await productResponse.json();
 
-        const data = await response.json();
-        console.log("Fetched Dashboard Data:", data);
+        // Calculate total stock
+        const totalStock = productJson.reduce((acc, product) => acc + (product.stock || 0), 0);
 
-        // Example API response keys
+        setAgents(allAgents);
+        setProducts(productJson);
+
         setDashboardData({
-          totalUsers: data.totalUsers,
-          totalAgents: data.totalAgents,
-          totalOrders: data.totalOrders,
-          totalSales: data.totalSales,
-          totalSoilTests: data.totalSoilTests,
+          totalAgents: allAgents.length,
+          activeAgents: allAgents.filter(agent => agent.active).length,  // assuming 'active' is a boolean
+          totalProducts: productJson.length,
+          totalStock: totalStock
         });
 
-        setOrders(data.recentOrders || []);
-        setAgents(data.agents || []);
-        setSalesData(data.salesData || []);
+        // Example dummy sales data (replace this with real endpoint if you have)
+        setSalesData([
+          { month: "Jan", sales: 4000 },
+          { month: "Feb", sales: 3000 },
+          { month: "Mar", sales: 5000 }
+        ]);
+
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       }
     };
 
-    fetchDashboardData();
-  }, []);
+    fetchData();
+  }, [authToken]);
 
   return (
     <Box
@@ -92,10 +63,7 @@ const Dashboard = () => {
         minHeight: "100vh",
       }}
     >
-      <Header
-        title="Admin Dashboard"
-        subtitle="Platform insights & performance overview"
-      />
+      <Header title="Admin Dashboard" subtitle="Platform insights & performance overview" />
 
       <Grid container spacing={3} mt={3}>
         {dashboardData &&
@@ -124,12 +92,7 @@ const Dashboard = () => {
 
       <Grid container spacing={3} mt={3}>
         <Grid item xs={12} md={6}>
-          <Card
-            sx={{
-              borderRadius: "12px",
-              boxShadow: "0px 4px 10px rgba(255,255,255,0.2)",
-            }}
-          >
+          <Card sx={{ borderRadius: "12px", boxShadow: "0px 4px 10px rgba(255,255,255,0.2)" }}>
             <CardContent>
               <Typography variant="h6">Sales Performance</Typography>
               <BarChart width={450} height={300} data={salesData}>
@@ -144,29 +107,23 @@ const Dashboard = () => {
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Card
-            sx={{
-              borderRadius: "12px",
-              boxShadow: "0px 4px 10px rgba(255,255,255,0.2)",
-            }}
-          >
+          <Card sx={{ borderRadius: "12px", boxShadow: "0px 4px 10px rgba(255,255,255,0.2)" }}>
             <CardContent>
               <Typography variant="h6">Agent Status</Typography>
               <PieChart width={350} height={300}>
                 <Pie
-                  data={agents}
+                  data={[
+                    { name: "Active", value: agents.filter(agent => agent.active).length },
+                    { name: "Inactive", value: agents.filter(agent => !agent.active).length }
+                  ]}
                   cx="50%"
                   cy="50%"
                   outerRadius={90}
-                  dataKey="status"
+                  dataKey="value"
                   nameKey="name"
                 >
-                  {agents.map((_, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={["#4caf50", "#f44336", "#ff9800"][index % 3]}
-                    />
-                  ))}
+                  <Cell fill="#4caf50" />
+                  <Cell fill="#f44336" />
                 </Pie>
                 <Tooltip />
               </PieChart>
@@ -174,59 +131,6 @@ const Dashboard = () => {
           </Card>
         </Grid>
       </Grid>
-
-      <Box mt={3}>
-        <Typography variant="h6">Recent Orders</Typography>
-        <TableContainer
-          component={Paper}
-          sx={{
-            borderRadius: "12px",
-            mt: 2,
-            backgroundColor: "#212121",
-            color: "white",
-          }}
-        >
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>
-                  <strong>User</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Product</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Quantity</strong>
-                </TableCell>
-                <TableCell>
-                  <strong>Status</strong>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {orders.map((order, index) => (
-                <TableRow key={index}>
-                  <TableCell>{order.user}</TableCell>
-                  <TableCell>{order.product}</TableCell>
-                  <TableCell>{order.quantity}</TableCell>
-                  <TableCell
-                    sx={{
-                      color:
-                        order.status === "Delivered"
-                          ? "#4caf50"
-                          : order.status === "Shipped"
-                          ? "#ff9800"
-                          : "#f44336",
-                    }}
-                  >
-                    {order.status}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Box>
     </Box>
   );
 };

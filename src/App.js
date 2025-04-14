@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import Topbar from "./scenes/global/Topbar";
 import Sidebar from "./scenes/global/Sidebar";
 import Dashboard from "./scenes/dashboard";
@@ -17,13 +17,14 @@ import ProtectedRoute from "./ProtectedRoute";
 function App() {
   const [theme, colorMode] = useMode();
   const [isSidebar, setIsSidebar] = useState(true);
-  const [isAuth, setIsAuth] = useState(!!localStorage.getItem("auth"));
+  const [isAuth, setIsAuth] = useState(!!localStorage.getItem("authToken"));
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ Get current route
 
   // Update auth state if localStorage changes from another tab
   useEffect(() => {
     const handleStorageChange = () => {
-      setIsAuth(!!localStorage.getItem("auth"));
+      setIsAuth(!!localStorage.getItem("authToken"));
     };
 
     window.addEventListener("storage", handleStorageChange);
@@ -32,19 +33,25 @@ function App() {
 
   // Handle logout
   const handleLogout = () => {
-    localStorage.removeItem("auth");
+    localStorage.removeItem("authToken");
     setIsAuth(false);
     navigate("/login");
   };
+
+  const isLoginPage = location.pathname === "/login"; // ✅ Check current page
 
   return (
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <div className="app">
-          {isAuth && <Sidebar isSidebar={isSidebar} />}
+          {/* Show Sidebar only when authenticated AND not on login page */}
+          {isAuth && !isLoginPage && <Sidebar isSidebar={isSidebar} />}
+
           <main className="content">
-            <Topbar setIsSidebar={setIsSidebar} handleLogout={handleLogout} />
+            {/* Show Topbar only when not on login page */}
+            {!isLoginPage && <Topbar handleLogout={handleLogout} />}
+            
             <Routes>
               {/* Public Route */}
               <Route path="/login" element={<Login setIsAuth={setIsAuth} />} />

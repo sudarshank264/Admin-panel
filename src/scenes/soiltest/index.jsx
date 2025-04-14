@@ -16,46 +16,67 @@ import {
   MenuItem,
   Select,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
 } from "@mui/material";
-import { Visibility, GetApp } from "@mui/icons-material";
+import { Visibility } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 import Header from "../../components/Header";
 import axios from "axios";
-import { BASE_URL } from "../../data/constants.js";
+import { BASE_URL } from "../../data/constants";
 
 const statusColors = {
-  Pending: "warning",
-  Completed: "success",
-  "In Progress": "info",
+  PENDING: "warning",
+  COMPLETED: "success",
+  "IN PROGRESS": "info",
 };
 
-const Soiltests = () => {
+const SoilTests = () => {
   const [requests, setRequests] = useState([]);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    farmer: "",
+    location: "",
+    soilType: "",
+    status: "",
+  });
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const fetchRequests = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`${BASE_URL}/soil-test`);
-        setRequests(response.data);
+        const token = localStorage.getItem("authToken");
+        const response = await axios.get(`${BASE_URL}/soil-test/reports`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setRequests(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
         console.error("Error fetching soil test data:", error);
+        setRequests([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchRequests();
   }, []);
 
-  const filteredRequests = requests.filter(
-    (req) =>
-      req.farmer?.toLowerCase().includes(search.toLowerCase()) &&
-      (statusFilter ? req.status === statusFilter : true)
-  );
+  const filteredRequests = requests.filter((req) => {
+    const farmerName = req?.userName?.toLowerCase() || "";
+    const location = req?.farmLocation?.toLowerCase() || "";
+    const soilType = req?.soilType?.toLowerCase() || "";
+    const status = req?.status?.toLowerCase() || "";
+    return (
+      farmerName.includes(filters.farmer.toLowerCase()) &&
+      location.includes(filters.location.toLowerCase()) &&
+      soilType.includes(filters.soilType.toLowerCase()) &&
+      (filters.status ? status === filters.status.toLowerCase() : true)
+    );
+  });
 
   return (
     <Box
@@ -64,100 +85,87 @@ const Soiltests = () => {
         p: 3,
         width: { xs: "100%", sm: "calc(100% - 250px)" },
         minHeight: "100vh",
-        backgroundColor: "",
         boxSizing: "border-box",
+        backgroundColor: "#121212",
+        color: "#fff",
       }}
     >
-      <Header title="Soil Test Requests" subtitle="Management Dashboard" />
+      <Header title="Soil Test Reports" subtitle="Monitoring & Analysis" />
 
-      {/* Summary Cards */}
       <Grid container spacing={3} mt={2}>
-        <Grid item xs={12} sm={4}>
-          <Card
-            sx={{
-              backgroundColor: "#212121",
-              color: "#fff",
-              textAlign: "center",
-              p: 3,
-              borderRadius: "12px",
-              boxShadow: "0px 4px 10px rgba(255,255,255,0.2)",
-            }}
-          >
-            <Typography variant="h6">Total Requests</Typography>
-            <Typography variant="h4" color="primary">
-              {filteredRequests.length}
-            </Typography>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <Card
-            sx={{
-              backgroundColor: "#212121",
-              color: "#fff",
-              textAlign: "center",
-              p: 3,
-              borderRadius: "12px",
-              boxShadow: "0px 4px 10px rgba(255,255,255,0.2)",
-            }}
-          >
-            <Typography variant="h6">Pending Requests</Typography>
-            <Typography variant="h4" color="primary">
-              {
-                filteredRequests.filter((req) => req.status === "Pending")
-                  .length
-              }
-            </Typography>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <Card
-            sx={{
-              backgroundColor: "#212121",
-              color: "#fff",
-              textAlign: "center",
-              p: 3,
-              borderRadius: "12px",
-              boxShadow: "0px 4px 10px rgba(255,255,255,0.2)",
-            }}
-          >
-            <Typography variant="h6">Completed Requests</Typography>
-            <Typography variant="h4" color="primary">
-              {
-                filteredRequests.filter((req) => req.status === "Completed")
-                  .length
-              }
-            </Typography>
-          </Card>
-        </Grid>
+        {[
+          { label: "Total Reports", value: filteredRequests.length },
+          {
+            label: "Pending Reports",
+            value: filteredRequests.filter(
+              (req) => req.status?.toUpperCase() === "PENDING"
+            ).length,
+          },
+          {
+            label: "Completed Reports",
+            value: filteredRequests.filter(
+              (req) => req.status?.toUpperCase() === "COMPLETED"
+            ).length,
+          },
+        ].map((item, i) => (
+          <Grid item xs={12} sm={4} key={i}>
+            <Card
+              sx={{
+                backgroundColor: "#1e1e1e",
+                textAlign: "center",
+                p: 3,
+                borderRadius: "16px",
+                boxShadow: "0 4px 10px rgba(255,255,255,0.15)",
+              }}
+            >
+              <Typography variant="h6">{item.label}</Typography>
+              <Typography variant="h4" color="primary">
+                {item.value}
+              </Typography>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
-      {/* Search and Filter Section */}
-      <Box mt={3} display="flex" gap={2}>
+      <Box mt={4} display="flex" gap={2} flexWrap="wrap">
         <TextField
           label="Search by Farmer"
           variant="outlined"
           size="small"
-          fullWidth
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={filters.farmer}
+          onChange={(e) => setFilters({ ...filters, farmer: e.target.value })}
+        />
+        <TextField
+          label="Search by Location"
+          variant="outlined"
+          size="small"
+          value={filters.location}
+          onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+        />
+        <TextField
+          label="Search by Soil Type"
+          variant="outlined"
+          size="small"
+          value={filters.soilType}
+          onChange={(e) => setFilters({ ...filters, soilType: e.target.value })}
         />
         <Select
           displayEmpty
-          fullWidth
           size="small"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          value={filters.status}
+          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
         >
           <MenuItem value="">All Statuses</MenuItem>
-          <MenuItem value="Pending">Pending</MenuItem>
-          <MenuItem value="Completed">Completed</MenuItem>
-          <MenuItem value="In Progress">In Progress</MenuItem>
+          <MenuItem value="PENDING">Pending</MenuItem>
+          <MenuItem value="COMPLETED">Completed</MenuItem>
+          <MenuItem value="IN PROGRESS">In Progress</MenuItem>
         </Select>
       </Box>
 
-      {/* Table Section */}
-      <Box mt={3}>
-        <Typography variant="h6">Requests Table</Typography>
+      <Box mt={4}>
+        <Typography variant="h6" mb={2}>
+          Reports Table
+        </Typography>
         {loading ? (
           <Box display="flex" justifyContent="center" mt={4}>
             <CircularProgress />
@@ -166,50 +174,56 @@ const Soiltests = () => {
           <TableContainer
             component={Paper}
             sx={{
-              mt: 2,
+              backgroundColor: "#1e1e1e",
               borderRadius: "12px",
-              backgroundColor: "#212121",
-              color: "white",
+              overflowX: "auto",
             }}
           >
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ color: "white" }}>
-                    <strong>Farmer</strong>
-                  </TableCell>
-                  <TableCell sx={{ color: "white" }}>
-                    <strong>Location</strong>
-                  </TableCell>
-                  <TableCell sx={{ color: "white" }}>
-                    <strong>Status</strong>
-                  </TableCell>
-                  <TableCell sx={{ color: "white" }}>
-                    <strong>Assigned Agent</strong>
-                  </TableCell>
-                  <TableCell sx={{ color: "white" }}>
-                    <strong>Actions</strong>
-                  </TableCell>
+                  <TableCell sx={{ color: "#fff" }}>Farmer</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>Location</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>Soil Type</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>Test Date</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>Status</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>pH</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>N (mg/kg)</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>P (mg/kg)</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>K (mg/kg)</TableCell>
+                  <TableCell sx={{ color: "#fff" }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredRequests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell>{request.farmer}</TableCell>
-                    <TableCell>{request.location}</TableCell>
+                  <TableRow key={request.soilTestId || Math.random()}>
+                    <TableCell>{request.userName || "N/A"}</TableCell>
+                    <TableCell>{request.farmLocation || "N/A"}</TableCell>
+                    <TableCell>{request.soilType || "N/A"}</TableCell>
+                    <TableCell>{request.testDate || "N/A"}</TableCell>
                     <TableCell>
                       <Chip
-                        label={request.status}
-                        color={statusColors[request.status]}
+                        label={request.status || "Unknown"}
+                        color={
+                          statusColors[request.status?.toUpperCase()] ||
+                          "default"
+                        }
+                        variant="outlined"
                       />
                     </TableCell>
-                    <TableCell>{request.agent}</TableCell>
+                    <TableCell>{request.phLevel ?? "-"}</TableCell>
+                    <TableCell>{request.nitrogen ?? "-"}</TableCell>
+                    <TableCell>{request.phosphorus ?? "-"}</TableCell>
+                    <TableCell>{request.potassium ?? "-"}</TableCell>
                     <TableCell>
-                      <IconButton color="primary" aria-label="view report">
+                      <IconButton
+                        color="primary"
+                        onClick={() => {
+                          setSelectedRequest(request);
+                          setOpen(true);
+                        }}
+                      >
                         <Visibility />
-                      </IconButton>
-                      <IconButton color="secondary" aria-label="download report">
-                        <GetApp />
                       </IconButton>
                     </TableCell>
                   </TableRow>
@@ -219,248 +233,35 @@ const Soiltests = () => {
           </TableContainer>
         )}
       </Box>
+
+      {/* Modal for Viewing Details */}
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Soil Test Details</DialogTitle>
+        <DialogContent dividers>
+          {selectedRequest ? (
+            <Box>
+              <Typography gutterBottom><strong>Farmer:</strong> {selectedRequest.userName}</Typography>
+              <Typography gutterBottom><strong>Location:</strong> {selectedRequest.farmLocation}</Typography>
+              <Typography gutterBottom><strong>Soil Type:</strong> {selectedRequest.soilType}</Typography>
+              <Typography gutterBottom><strong>Test Date:</strong> {selectedRequest.testDate}</Typography>
+              <Typography gutterBottom><strong>Status:</strong> {selectedRequest.status}</Typography>
+              <Typography gutterBottom><strong>pH Level:</strong> {selectedRequest.phLevel}</Typography>
+              <Typography gutterBottom><strong>Nitrogen:</strong> {selectedRequest.nitrogen}</Typography>
+              <Typography gutterBottom><strong>Phosphorus:</strong> {selectedRequest.phosphorus}</Typography>
+              <Typography gutterBottom><strong>Potassium:</strong> {selectedRequest.potassium}</Typography>
+            </Box>
+          ) : (
+            <Typography>No data available.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)} color="primary" variant="contained">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
 
-export default Soiltests;
-
-
-
-// import {
-//   Box,
-//   Paper,
-//   Typography,
-//   Table,
-//   TableBody,
-//   TableCell,
-//   TableContainer,
-//   TableHead,
-//   TableRow,
-//   TextField,
-//   IconButton,
-//   Chip,
-//   Grid,
-//   Card,
-//   MenuItem,
-//   Select,
-// } from "@mui/material";
-// import { Visibility, GetApp } from "@mui/icons-material";
-// import { useState } from "react";
-// import Header from "../../components/Header";
-
-// const initialRequests = [
-//   {
-//     id: 1,
-//     farmer: "Rajesh Kumar",
-//     location: "Bihar",
-//     status: "Pending",
-//     agent: "Amit Singh",
-//   },
-//   {
-//     id: 2,
-//     farmer: "Suresh Yadav",
-//     location: "Uttar Pradesh",
-//     status: "Completed",
-//     agent: "Ravi Verma",
-//   },
-//   {
-//     id: 3,
-//     farmer: "Anita Sharma",
-//     location: "Maharashtra",
-//     status: "In Progress",
-//     agent: "Pooja Patel",
-//   },
-//   {
-//     id: 4,
-//     farmer: "Vikram Chauhan",
-//     location: "Madhya Pradesh",
-//     status: "Pending",
-//     agent: "Sandeep Rao",
-//   },
-//   {
-//     id: 5,
-//     farmer: "Neha Gupta",
-//     location: "Rajasthan",
-//     status: "Completed",
-//     agent: "Arun Mehta",
-//   },
-// ];
-
-// const statusColors = {
-//   Pending: "warning",
-//   Completed: "success",
-//   "In Progress": "info",
-// };
-
-// const Soiltests = () => {
-//   const [search, setSearch] = useState("");
-//   const [statusFilter, setStatusFilter] = useState("");
-
-//   const filteredRequests = initialRequests.filter(
-//     (req) =>
-//       req.farmer.toLowerCase().includes(search.toLowerCase()) &&
-//       (statusFilter ? req.status === statusFilter : true)
-//   );
-
-//   return (
-//     <Box
-//       sx={{
-//         ml: { xs: 0, sm: "250px" },
-//         p: 3,
-//         width: { xs: "100%", sm: "calc(100% - 250px)" },
-//         minHeight: "100vh",
-//         backgroundColor: "",
-//         boxSizing: "border-box",
-//       }}
-//     >
-//       <Header title="Soil Test Requests" subtitle="Management Dashboard" />
-
-//       {/* Summary Cards */}
-//       <Grid container spacing={3} mt={2}>
-//         <Grid item xs={12} sm={4}>
-//           <Card
-//             sx={{
-//               backgroundColor: "#212121",
-//               color: "#fff",
-//               textAlign: "center",
-//               p: 3,
-//               borderRadius: "12px",
-//               boxShadow: "0px 4px 10px rgba(255,255,255,0.2)",
-//             }}
-//           >
-//             <Typography variant="h6">Total Requests</Typography>
-//             <Typography variant="h4" color="primary">
-//               {filteredRequests.length}
-//             </Typography>
-//           </Card>
-//         </Grid>
-//         <Grid item xs={12} sm={4}>
-//           <Card
-//             sx={{
-//               backgroundColor: "#212121",
-//               color: "#fff",
-//               textAlign: "center",
-//               p: 3,
-//               borderRadius: "12px",
-//               boxShadow: "0px 4px 10px rgba(255,255,255,0.2)",
-//             }}
-//           >
-//             <Typography variant="h6">Pending Requests</Typography>
-//             <Typography variant="h4" color="primary">
-//               {
-//                 filteredRequests.filter((req) => req.status === "Pending")
-//                   .length
-//               }
-//             </Typography>
-//           </Card>
-//         </Grid>
-//         <Grid item xs={12} sm={4}>
-//           <Card
-//             sx={{
-//               backgroundColor: "#212121",
-//               color: "#fff",
-//               textAlign: "center",
-//               p: 3,
-//               borderRadius: "12px",
-//               boxShadow: "0px 4px 10px rgba(255,255,255,0.2)",
-//             }}
-//           >
-//             <Typography variant="h6">Completed Requests</Typography>
-//             <Typography variant="h4" color="primary">
-//               {
-//                 filteredRequests.filter((req) => req.status === "Completed")
-//                   .length
-//               }
-//             </Typography>
-//           </Card>
-//         </Grid>
-//       </Grid>
-
-//       {/* Search and Filter Section */}
-//       <Box mt={3} display="flex" gap={2}>
-//         <TextField
-//           label="Search by Farmer"
-//           variant="outlined"
-//           size="small"
-//           fullWidth
-//           value={search}
-//           onChange={(e) => setSearch(e.target.value)}
-//         />
-//         <Select
-//           displayEmpty
-//           fullWidth
-//           size="small"
-//           value={statusFilter}
-//           onChange={(e) => setStatusFilter(e.target.value)}
-//         >
-//           <MenuItem value="">All Statuses</MenuItem>
-//           <MenuItem value="Pending">Pending</MenuItem>
-//           <MenuItem value="Completed">Completed</MenuItem>
-//           <MenuItem value="In Progress">In Progress</MenuItem>
-//         </Select>
-//       </Box>
-
-//       {/* Table Section */}
-//       <Box mt={3}>
-//         <Typography variant="h6">Requests Table</Typography>
-//         <TableContainer
-//           component={Paper}
-//           sx={{
-//             mt: 2,
-//             borderRadius: "12px",
-//             backgroundColor: "#212121",
-//             color: "white",
-//           }}
-//         >
-//           <Table>
-//             <TableHead>
-//               <TableRow>
-//                 <TableCell sx={{ color: "white" }}>
-//                   <strong>Farmer</strong>
-//                 </TableCell>
-//                 <TableCell sx={{ color: "white" }}>
-//                   <strong>Location</strong>
-//                 </TableCell>
-//                 <TableCell sx={{ color: "white" }}>
-//                   <strong>Status</strong>
-//                 </TableCell>
-//                 <TableCell sx={{ color: "white" }}>
-//                   <strong>Assigned Agent</strong>
-//                 </TableCell>
-//                 <TableCell sx={{ color: "white" }}>
-//                   <strong>Actions</strong>
-//                 </TableCell>
-//               </TableRow>
-//             </TableHead>
-//             <TableBody>
-//               {filteredRequests.map((request) => (
-//                 <TableRow key={request.id}>
-//                   <TableCell>{request.farmer}</TableCell>
-//                   <TableCell>{request.location}</TableCell>
-//                   <TableCell>
-//                     <Chip
-//                       label={request.status}
-//                       color={statusColors[request.status]}
-//                     />
-//                   </TableCell>
-//                   <TableCell>{request.agent}</TableCell>
-//                   <TableCell>
-//                     <IconButton color="primary" aria-label="view report">
-//                       <Visibility />
-//                     </IconButton>
-//                     <IconButton color="secondary" aria-label="download report">
-//                       <GetApp />
-//                     </IconButton>
-//                   </TableCell>
-//                 </TableRow>
-//               ))}
-//             </TableBody>
-//           </Table>
-//         </TableContainer>
-//       </Box>
-//     </Box>
-//   );
-// };
-
-// export default Soiltests;
+export default SoilTests;

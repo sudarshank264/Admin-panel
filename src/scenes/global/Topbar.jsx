@@ -1,19 +1,25 @@
 import { Box, IconButton, useTheme } from "@mui/material";
 import { useContext } from "react";
+import { useNavigate } from "react-router-dom"; // ✅ import navigate
 import { ColorModeContext, tokens } from "../../theme";
 import InputBase from "@mui/material/InputBase";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
-
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import LogoutIcon from '@mui/icons-material/Logout';
+import LogoutIcon from "@mui/icons-material/Logout";
 
-const Topbar = () => {
+const Topbar = ({ handleLogout }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const colorMode = useContext(ColorModeContext);
+  const navigate = useNavigate(); // ✅ hook for navigation
+
+  const handleLogoutClick = () => {
+    localStorage.removeItem("authToken"); // ✅ correct key
+    navigate("/login"); // ✅ redirect to login
+  };
 
   return (
     <Box display="flex" justifyContent="space-between" p={2}>
@@ -23,10 +29,10 @@ const Topbar = () => {
         backgroundColor={colors.primary[400]}
         borderRadius="3px"
       >
-        <InputBase sx={{ ml: 2, flex: 1 }} placeholder="Search" />
+        {/* <InputBase sx={{ ml: 2, flex: 1 }} placeholder="Search" />
         <IconButton type="button" sx={{ p: 1 }}>
           <SearchIcon />
-        </IconButton>
+        </IconButton> */}
       </Box>
 
       {/* ICONS */}
@@ -38,18 +44,15 @@ const Topbar = () => {
             <LightModeOutlinedIcon />
           )}
         </IconButton>
-        <IconButton>
+        {/* <IconButton>
           <NotificationsOutlinedIcon />
+        </IconButton> */}
+        <IconButton onClick={handleLogoutClick}> {/* ✅ updated here */}
+          <LogoutIcon />
         </IconButton>
-        <IconButton>
-          <LogoutIcon onClick={() => {
-            localStorage.removeItem("auth"); // Remove auth token
-            window.location.reload(); // Reload the page to reflect changes
-          }} />
-        </IconButton>
-        <IconButton>
+        {/* <IconButton>
           <PersonOutlinedIcon />
-        </IconButton>
+        </IconButton> */}
       </Box>
     </Box>
   );

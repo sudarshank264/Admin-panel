@@ -1,12 +1,27 @@
 import { Navigate } from "react-router-dom";
 
-// Dummy authentication function
+// Check for token in localStorage
 const isAuthenticated = () => {
-  return localStorage.getItem("auth") !== null; 
+  const token = localStorage.getItem("authToken");
+  return !!token; // returns true if token exists
 };
 
 const ProtectedRoute = ({ element }) => {
-  return isAuthenticated() ? element : <Navigate to="/login" />;
+  return isAuthenticated() ? element : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;
+
+
+// import { Navigate } from "react-router-dom";
+
+// // Dummy authentication function
+// const isAuthenticated = () => {
+//   return localStorage.getItem("auth") !== null; 
+// };
+
+// const ProtectedRoute = ({ element }) => {
+//   return isAuthenticated() ? element : <Navigate to="/login" />;
+// };
+
+// export default ProtectedRoute;
