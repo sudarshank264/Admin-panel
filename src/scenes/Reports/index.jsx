@@ -112,7 +112,16 @@ const ReportDashboard = () => {
             InputLabelProps={{ shrink: true }}
             value={filters.from}
             onChange={(e) => setFilters({ ...filters, from: e.target.value })}
-            sx={{ input: { color: "#fff" }, label: { color: "#fff" }, "& .MuiOutlinedInput-root": { "& fieldset": { borderColor: "#555" } } }}
+            sx={{
+              input: { 
+                color: "#fff",
+                '&::-webkit-calendar-picker-indicator': {
+                  filter: 'invert(1)'  // this inverts the default black icon to white
+                }
+              },
+              label: { color: "#fff" },
+              "& .MuiOutlinedInput-root": { "& fieldset": { borderColor: "#555" } }
+            }}
           />
           <TextField
             label="To Date"
@@ -120,8 +129,16 @@ const ReportDashboard = () => {
             InputLabelProps={{ shrink: true }}
             value={filters.to}
             onChange={(e) => setFilters({ ...filters, to: e.target.value })}
-            sx={{ input: { color: "#fff" }, label: { color: "#fff" }, "& .MuiOutlinedInput-root": { "& fieldset": { borderColor: "#555" } } }}
-          />
+            sx={{
+              input: { 
+                color: "#fff",
+                '&::-webkit-calendar-picker-indicator': {
+                  filter: 'invert(1)'  // this inverts the default black icon to white
+                }
+              },
+              label: { color: "#fff" },
+              "& .MuiOutlinedInput-root": { "& fieldset": { borderColor: "#555" } }
+            }} />
           <Select
             value={reportType}
             onChange={(e) => setReportType(e.target.value)}

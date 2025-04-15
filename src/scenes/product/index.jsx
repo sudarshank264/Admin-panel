@@ -228,7 +228,7 @@ const ProductManagement = () => {
         </Grid>
       </Grid>
 
-      <Box mt={3} display="flex" gap={2}>
+      {/* <Box mt={3} display="flex" gap={2}>
         <TextField
           label="Search by Any Field"
           variant="outlined"
@@ -236,6 +236,7 @@ const ProductManagement = () => {
           fullWidth
           value={search}
           onChange={handleSearch}
+          
         />
         <Select
           displayEmpty
@@ -254,7 +255,40 @@ const ProductManagement = () => {
         <Button variant="contained" color="primary" onClick={handleAddProduct}>
           Add Product
         </Button>
-      </Box>
+      </Box> */}
+      <Box mt={3} display="flex" gap={2}>
+  <TextField
+    label="Search by Any Field"
+    variant="outlined"
+    size="small"
+    value={search}
+    onChange={handleSearch}
+    sx={{ flex: 1 }}
+  />
+  <Select
+    displayEmpty
+    size="small"
+    value={categoryFilter}
+    onChange={handleFilterChange}
+    sx={{ flex: 1 }}
+  >
+    <MenuItem value="">All Categories</MenuItem>
+    {categories.map((cat) => (
+      <MenuItem key={cat} value={cat}>
+        {cat}
+      </MenuItem>
+    ))}
+  </Select>
+  <Button
+    variant="contained"
+    color="primary"
+    onClick={handleAddProduct}
+    sx={{ flex: 1, whiteSpace: "nowrap" }}
+  >
+    Add Product
+  </Button>
+</Box>
+
 
       <TableContainer component={Paper} sx={{ mt: 3, borderRadius: "10px" }}>
         <Table>

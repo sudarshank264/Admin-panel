@@ -122,7 +122,7 @@ const OrderManagement = () => {
           <Card sx={{ borderRadius: 3, boxShadow: 3 }}>
             <CardContent>
               <Typography variant="h6">Total Orders</Typography>
-              <Typography variant="h4" color="primary.main">{filteredOrders.length}</Typography>
+              <Typography variant="h4" color="white">{filteredOrders.length}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -187,8 +187,8 @@ const OrderManagement = () => {
                 <TableCell><Chip label={order.paymentStatus} color={getPaymentColor(order.paymentStatus)} /></TableCell>
                 <TableCell><Chip label={order.orderStatus} color={getStatusColor(order.orderStatus)} /></TableCell>
                 <TableCell>
-                  <IconButton color="primary" onClick={() => handleEditOrder(order)}><Edit /></IconButton>
-                  <IconButton color="info" onClick={() => handleViewOrder(order.orderId)}><Visibility /></IconButton>
+                  <IconButton sx={{ color: "white" }} onClick={() => handleEditOrder(order)}><Edit /></IconButton>
+                  <IconButton sx={{ color: "green" }} onClick={() => handleViewOrder(order.orderId)}><Visibility /></IconButton>
                   <IconButton color="error" onClick={() => handleDeleteOrder(order.orderId)}><Delete /></IconButton>
                 </TableCell>
               </TableRow>

@@ -59,7 +59,8 @@ const AgentManagement = () => {
       name: agent.name || "",
       region: agent.location || "",
       phoneNumber: agent.mobileNumber || "",
-      status: agent.active ? "Active" : "Inactive"
+      status: agent.active  ? "Active" : "Inactive",
+      
     });
     setOpenDialog(true);
   };
@@ -139,7 +140,7 @@ const AgentManagement = () => {
             boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
           }}>
             <Typography variant="h6">Total Agents</Typography>
-            <Typography variant="h3" color="primary">{agents.length}</Typography>
+            <Typography variant="h3" color="white">{agents.length}</Typography>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -152,14 +153,16 @@ const AgentManagement = () => {
             boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
           }}>
             <Typography variant="h6">Active Agents</Typography>
-            <Typography variant="h3" color="success.main">
+            <Typography variant="h3" color="white">
               {agents.filter((a) => a.active).length}
             </Typography>
+            
           </Card>
         </Grid>
+        
       </Grid>
 
-      <Box mt={4} display="flex" flexDirection={{ xs: "column", md: "row" }} gap={2}>
+      {/* <Box mt={4} display="flex" flexDirection={{ xs: "column", md: "row" }} gap={2}>
         <TextField
           label="Search by Agent Name"
           variant="outlined"
@@ -188,7 +191,55 @@ const AgentManagement = () => {
         <Button variant="contained" color="primary" onClick={handleAddAgent}>
           Add Agent
         </Button>
-      </Box>
+      </Box> */}
+      <Box mt={4} display="flex" flexDirection={{ xs: "column", md: "row" }} gap={2}>
+  <TextField
+    label="Search by Agent Name"
+    variant="outlined"
+    size="small"
+    fullWidth
+    value={search}
+    onChange={handleSearch}
+    sx={{
+      backgroundColor: "#1f1f1f",
+      input: { color: "white" },
+      height: "40px",   // FIXED height same as Select
+      ".MuiInputBase-root": {
+        height: "40px"
+      }
+    }}
+  />
+  <Select
+    displayEmpty
+    fullWidth
+    size="small"
+    value={regionFilter}
+    onChange={handleFilterChange}
+    sx={{
+      backgroundColor: "#1f1f1f",
+      color: "white",
+      height: "40px",  // FIXED height
+      ".MuiSelect-select": {
+        display: "flex",
+        alignItems: "center"
+      }
+    }}
+  >
+    <MenuItem value="">All Regions</MenuItem>
+    {regions.map((reg) => (
+      <MenuItem key={reg} value={reg}>{reg}</MenuItem>
+    ))}
+  </Select>
+  <Button
+    variant="contained"
+    color="primary"
+    sx={{ height: "40px", minWidth: "120px" }}  // Button matches height
+    onClick={handleAddAgent}
+  >
+    Add Agent
+  </Button>
+</Box>
+
 
       <TableContainer component={Paper} sx={{
         mt: 4,
@@ -219,9 +270,16 @@ const AgentManagement = () => {
                   />
                 </TableCell>
                 <TableCell>
-                  <IconButton color="primary" onClick={() => handleEditAgent(agent)}>
+                  {/* <IconButton color="primary" onClick={() => handleEditAgent(agent)}>
                     <Edit />
-                  </IconButton>
+                  </IconButton> */}
+                  <IconButton 
+  onClick={() => handleEditAgent(agent)} 
+  sx={{ color: "white" }}
+>
+  <Edit />
+</IconButton>
+
                   <IconButton color="error" onClick={() => handleDeleteAgent(agent.userId)}>
                     <Delete />
                   </IconButton>
