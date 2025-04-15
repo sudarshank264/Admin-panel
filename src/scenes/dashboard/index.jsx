@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Paper, Typography, Grid, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
+import { Box, Typography, Grid, Card, CardContent } from "@mui/material";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend } from "recharts";
 import Header from "../../components/Header";
 
@@ -17,16 +17,13 @@ const Dashboard = () => {
       try {
         const headers = { Authorization: `Bearer ${authToken}` };
 
-        // Fetch all users
         const agentResponse = await fetch(`http://35.244.11.78:9101/api/user/`, { headers });
         const agentJson = await agentResponse.json();
         const allAgents = agentJson.filter(user => user.role === "AGENT");
 
-        // Fetch all products
         const productResponse = await fetch(`http://35.244.11.78:9101/api/products`, { headers });
         const productJson = await productResponse.json();
 
-        // Calculate total stock
         const totalStock = productJson.reduce((acc, product) => acc + (product.stock || 0), 0);
 
         setAgents(allAgents);
@@ -34,12 +31,11 @@ const Dashboard = () => {
 
         setDashboardData({
           totalAgents: allAgents.length,
-          activeAgents: allAgents.filter(agent => agent.active).length,  // assuming 'active' is a boolean
+          activeAgents: allAgents.filter(agent => agent.active).length,
           totalProducts: productJson.length,
           totalStock: totalStock
         });
 
-        // Example dummy sales data (replace this with real endpoint if you have)
         setSalesData([
           { month: "Jan", sales: 4000 },
           { month: "Feb", sales: 3000 },
@@ -82,7 +78,7 @@ const Dashboard = () => {
                 <Typography variant="h6" fontWeight="bold">
                   {key.replace(/([A-Z])/g, " $1").trim()}
                 </Typography>
-                <Typography variant="h3" color="primary">
+                <Typography variant="h3" sx={{ color: "#fff" }}>
                   {value}
                 </Typography>
               </Card>

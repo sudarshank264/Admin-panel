@@ -93,39 +93,40 @@ const SoilTests = () => {
       <Header title="Soil Test Reports" subtitle="Monitoring & Analysis" />
 
       <Grid container spacing={3} mt={2}>
-        {[
-          { label: "Total Reports", value: filteredRequests.length },
-          {
-            label: "Pending Reports",
-            value: filteredRequests.filter(
-              (req) => req.status?.toUpperCase() === "PENDING"
-            ).length,
-          },
-          {
-            label: "Completed Reports",
-            value: filteredRequests.filter(
-              (req) => req.status?.toUpperCase() === "COMPLETED"
-            ).length,
-          },
-        ].map((item, i) => (
-          <Grid item xs={12} sm={4} key={i}>
-            <Card
-              sx={{
-                backgroundColor: "#1e1e1e",
-                textAlign: "center",
-                p: 3,
-                borderRadius: "16px",
-                boxShadow: "0 4px 10px rgba(255,255,255,0.15)",
-              }}
-            >
-              <Typography variant="h6">{item.label}</Typography>
-              <Typography variant="h4" color="primary">
-                {item.value}
-              </Typography>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+  {[
+    { label: "Total Reports", value: filteredRequests.length },
+    {
+      label: "Pending Reports",
+      value: filteredRequests.filter(
+        (req) => req.status?.toUpperCase() === "PENDING"
+      ).length,
+    },
+    {
+      label: "Completed Reports",
+      value: filteredRequests.filter(
+        (req) => req.status?.toUpperCase() === "COMPLETED"
+      ).length,
+    },
+  ].map((item, i) => (
+    <Grid item xs={12} sm={4} key={i}>
+      <Card
+        sx={{
+          backgroundColor: "#1e1e1e",
+          textAlign: "center",
+          p: 3,
+          borderRadius: "16px",
+          boxShadow: "0 4px 10px rgba(255,255,255,0.15)",
+        }}
+      >
+        <Typography variant="h6">{item.label}</Typography>
+        <Typography variant="h4" sx={{ color: "#fff" }}>
+          {item.value}
+        </Typography>
+      </Card>
+    </Grid>
+  ))}
+</Grid>
+
 
       <Box mt={4} display="flex" gap={2} flexWrap="wrap">
         <TextField
@@ -216,15 +217,16 @@ const SoilTests = () => {
                     <TableCell>{request.phosphorus ?? "-"}</TableCell>
                     <TableCell>{request.potassium ?? "-"}</TableCell>
                     <TableCell>
-                      <IconButton
-                        color="primary"
-                        onClick={() => {
-                          setSelectedRequest(request);
-                          setOpen(true);
-                        }}
-                      >
-                        <Visibility />
-                      </IconButton>
+                    <IconButton
+  sx={{ color: "green" }}
+  onClick={() => {
+    setSelectedRequest(request);
+    setOpen(true);
+  }}
+>
+  <Visibility />
+</IconButton>
+
                     </TableCell>
                   </TableRow>
                 ))}

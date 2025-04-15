@@ -319,19 +319,21 @@ const ProductManagement = () => {
                   <TableCell>₹{product.price}</TableCell>
                   <TableCell>{product.stock}</TableCell>
                   <TableCell>
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleEditProduct(product)}
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDeleteProduct(product.productId)}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
+  <IconButton
+    onClick={() => handleEditProduct(product)}
+    sx={{ color: '#fff' }}
+  >
+    <Edit />
+  </IconButton>
+  <IconButton
+    color="error"
+    onClick={() => handleDeleteProduct(product.productId)}
+  >
+    <Delete />
+  </IconButton>
+</TableCell>
+
+
                 </TableRow>
               );
             })}
