@@ -27,11 +27,11 @@ import axios from "axios";
 import Header from "../../components/Header";
 import { BASE_URL } from "../../data/constants.js";
 
-const categories = ["Fertilizers", "Pesticides", "Seeds", "Equipment"];
 const API_BASE = `${BASE_URL}/products`;
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]); // State for dynamic categories
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
@@ -39,6 +39,18 @@ const ProductManagement = () => {
   const [images, setImages] = useState({});
 
   const token = localStorage.getItem("authToken");
+
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`http://35.244.11.78:9101/api/category`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log("Fetched categories:", response.data);
+      setCategories(response.data);
+    } catch (err) {
+      console.error("Failed to fetch categories:", err.response?.data || err.message);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -53,7 +65,7 @@ const ProductManagement = () => {
   };
 
   const fetchImage = async (imageUrl) => {
-    if (imageUrl) {
+    if (imageUrl && !images[imageUrl]) {
       let image = imageUrl.startsWith("http")
         ? imageUrl
         : `${BASE_URL}/uploads/${imageUrl}`;
@@ -62,7 +74,7 @@ const ProductManagement = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-          responseType: "blob", // Ensure the image is fetched as a blob
+          responseType: "blob",
         });
         const imageObjectURL = URL.createObjectURL(response.data);
         setImages((prevImages) => ({
@@ -76,8 +88,20 @@ const ProductManagement = () => {
   };
 
   useEffect(() => {
+    fetchCategories();
     fetchProducts();
-  }, []);
+  }, []); // Empty dependency array for one-time fetch on mount
+
+  useEffect(() => {
+    if (products.length > 0) {
+      products.forEach((product) => {
+        const imageUrl = product.imageUrl;
+        if (imageUrl && !images[imageUrl]) {
+          fetchImage(imageUrl);
+        }
+      });
+    }
+  }, [products, images]);
 
   const handleSearch = (e) => setSearch(e.target.value);
   const handleFilterChange = (e) => setCategoryFilter(e.target.value);
@@ -88,10 +112,19 @@ const ProductManagement = () => {
       (value) =>
         value !== null &&
         value !== undefined &&
-        value.toString().toLowerCase().includes(searchTerm)
+        (typeof value === "object"
+          ? Object.values(value).some(
+              (v) =>
+                v !== null &&
+                v !== undefined &&
+                v.toString().toLowerCase().includes(searchTerm)
+            )
+          : value.toString().toLowerCase().includes(searchTerm))
     );
     const matchesCategory = categoryFilter
-      ? product.category === categoryFilter
+      ? (typeof product.category === "object"
+          ? product.category?.name
+          : product.category) === categoryFilter
       : true;
     return matchesSearch && matchesCategory;
   });
@@ -100,7 +133,7 @@ const ProductManagement = () => {
     setEditProduct({
       name: "",
       description: "",
-      category: "",
+      category: "", // Store category name for UI
       price: "",
       stock: "",
       imageFile: null,
@@ -109,7 +142,11 @@ const ProductManagement = () => {
   };
 
   const handleEditProduct = (product) => {
-    setEditProduct({ ...product, imageFile: null }); // Reset imageFile when editing
+    setEditProduct({
+      ...product,
+      category: typeof product.category === "object" ? product.category?.name : product.category,
+      imageFile: null,
+    });
     setOpenDialog(true);
   };
 
@@ -120,10 +157,7 @@ const ProductManagement = () => {
       });
       fetchProducts();
     } catch (err) {
-      console.error(
-        "Failed to delete product:",
-        err.response?.data || err.message
-      );
+      console.error("Failed to delete product:", err.response?.data || err.message);
     }
   };
 
@@ -145,53 +179,41 @@ const ProductManagement = () => {
     const formData = new FormData();
     formData.append("name", editProduct.name);
     formData.append("description", editProduct.description);
-    formData.append("category", editProduct.category);
+    // Map category name to categoryId
+    const category = categories.find((cat) => cat.name === editProduct.category);
+    formData.append("categoryId", category ? category.categoryId : "");
     formData.append("price", editProduct.price);
-    formData.append("stock",editProduct.stock);
+    formData.append("stock", editProduct.stock);
 
     if (editProduct.imageFile) {
       formData.append("image", editProduct.imageFile);
     }
 
-    if (editProduct.stock) {
-      try {
-        if (editProduct.productId != undefined){
-        await axios.put(
-          `${API_BASE}/${editProduct.productId}/stock`,
-          { quantity: editProduct.stock },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );}
-        fetchProducts();
-      } catch (err) {
-        console.error(
-          "Failed to update stock:",
-          err.response?.data || err.message
-        );
-      }
-    }
-
     try {
       if (editProduct.productId) {
-        await axios.put(
-          `${API_BASE}/${editProduct.productId}`,
-          formData,
-          config
-        );
+        // Update product
+        await axios.put(`${API_BASE}/${editProduct.productId}`, formData, config);
+        // Update stock if necessary
+        if (editProduct.stock !== undefined) {
+          await axios.put(
+            `${API_BASE}/${editProduct.productId}/stock`,
+            { quantity: editProduct.stock },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+        }
       } else {
+        // Create new product
         await axios.post(`${API_BASE}/`, formData, config);
       }
       fetchProducts();
       handleDialogClose();
     } catch (err) {
-      console.error(
-        "Failed to save product:",
-        err.response?.data || err.message
-      );
+      console.error("Failed to save product:", err.response?.data || err.message);
     }
   };
 
@@ -204,10 +226,7 @@ const ProductManagement = () => {
         minHeight: "100vh",
       }}
     >
-      <Header
-        title="Product Management"
-        subtitle="Manage your product catalog"
-      />
+      <Header title="Product Management" subtitle="Manage your product catalog" />
 
       <Grid container spacing={3} mt={2}>
         <Grid item xs={6}>
@@ -228,67 +247,38 @@ const ProductManagement = () => {
         </Grid>
       </Grid>
 
-      {/* <Box mt={3} display="flex" gap={2}>
+      <Box mt={3} display="flex" gap={2}>
         <TextField
           label="Search by Any Field"
           variant="outlined"
           size="small"
-          fullWidth
           value={search}
           onChange={handleSearch}
-          
+          sx={{ flex: 1 }}
         />
         <Select
           displayEmpty
-          fullWidth
           size="small"
           value={categoryFilter}
           onChange={handleFilterChange}
+          sx={{ flex: 1 }}
         >
           <MenuItem value="">All Categories</MenuItem>
           {categories.map((cat) => (
-            <MenuItem key={cat} value={cat}>
-              {cat}
+            <MenuItem key={cat.categoryId} value={cat.name}>
+              {cat.name}
             </MenuItem>
           ))}
         </Select>
-        <Button variant="contained" color="primary" onClick={handleAddProduct}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleAddProduct}
+          sx={{ flex: 1, whiteSpace: "nowrap" }}
+        >
           Add Product
         </Button>
-      </Box> */}
-      <Box mt={3} display="flex" gap={2}>
-  <TextField
-    label="Search by Any Field"
-    variant="outlined"
-    size="small"
-    value={search}
-    onChange={handleSearch}
-    sx={{ flex: 1 }}
-  />
-  <Select
-    displayEmpty
-    size="small"
-    value={categoryFilter}
-    onChange={handleFilterChange}
-    sx={{ flex: 1 }}
-  >
-    <MenuItem value="">All Categories</MenuItem>
-    {categories.map((cat) => (
-      <MenuItem key={cat} value={cat}>
-        {cat}
-      </MenuItem>
-    ))}
-  </Select>
-  <Button
-    variant="contained"
-    color="primary"
-    onClick={handleAddProduct}
-    sx={{ flex: 1, whiteSpace: "nowrap" }}
-  >
-    Add Product
-  </Button>
-</Box>
-
+      </Box>
 
       <TableContainer component={Paper} sx={{ mt: 3, borderRadius: "10px" }}>
         <Table>
@@ -315,62 +305,57 @@ const ProductManagement = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredProducts.map((product) => {
-              const imageUrl = product.imageUrl;
-              if (imageUrl && !images[imageUrl]) {
-                fetchImage(imageUrl);
-              }
-
-              return (
-                <TableRow key={product.productId}>
-                  <TableCell>
-                    {images[imageUrl] ? (
-                      <img
-                        src={images[imageUrl]}
-                        alt={product.name}
-                        width={50}
-                        height={50}
-                        style={{ borderRadius: 8, objectFit: "cover" }}
-                      />
-                    ) : (
-                      <Box
-                        width={50}
-                        height={50}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                        bgcolor="#f0f0f0"
-                        borderRadius={1}
-                        fontSize="12px"
-                        color="#999"
-                      >
-                        No Image
-                      </Box>
-                    )}
-                  </TableCell>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell>₹{product.price}</TableCell>
-                  <TableCell>{product.stock}</TableCell>
-                  <TableCell>
-  <IconButton
-    onClick={() => handleEditProduct(product)}
-    sx={{ color: '#fff' }}
-  >
-    <Edit />
-  </IconButton>
-  <IconButton
-    color="error"
-    onClick={() => handleDeleteProduct(product.productId)}
-  >
-    <Delete />
-  </IconButton>
-</TableCell>
-
-
-                </TableRow>
-              );
-            })}
+            {filteredProducts.map((product) => (
+              <TableRow key={product.productId}>
+                <TableCell>
+                  {images[product.imageUrl] ? (
+                    <img
+                      src={images[product.imageUrl]}
+                      alt={product.name}
+                      width={50}
+                      height={50}
+                      style={{ borderRadius: 8, objectFit: "cover" }}
+                    />
+                  ) : (
+                    <Box
+                      width={50}
+                      height={50}
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      bgcolor="#f0f0f0"
+                      borderRadius={1}
+                      fontSize="12px"
+                      color="#999"
+                    >
+                      No Image
+                    </Box>
+                  )}
+                </TableCell>
+                <TableCell>{product.name}</TableCell>
+                <TableCell>
+                  {typeof product.category === "object" && product.category !== null
+                    ? product.category.name
+                    : product.category || "N/A"}
+                </TableCell>
+                <TableCell>₹{product.price}</TableCell>
+                <TableCell>{product.stock}</TableCell>
+                <TableCell>
+                  <IconButton
+                    onClick={() => handleEditProduct(product)}
+                    sx={{ color: "#fff" }}
+                  >
+                    <Edit />
+                  </IconButton>
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDeleteProduct(product.productId)}
+                  >
+                    <Delete />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </TableContainer>
@@ -379,9 +364,7 @@ const ProductManagement = () => {
         <DialogTitle>
           {editProduct?.productId ? "Edit Product" : "Add Product"}
         </DialogTitle>
-        <DialogContent
-          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-        >
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <TextField
             label="Product Name"
             fullWidth
@@ -408,8 +391,8 @@ const ProductManagement = () => {
           >
             <MenuItem value="">Select Category</MenuItem>
             {categories.map((cat) => (
-              <MenuItem key={cat} value={cat}>
-                {cat}
+              <MenuItem key={cat.categoryId} value={cat.name}>
+                {cat.name}
               </MenuItem>
             ))}
           </Select>
