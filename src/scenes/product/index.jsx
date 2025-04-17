@@ -28,21 +28,24 @@ import Header from "../../components/Header";
 import { BASE_URL } from "../../data/constants.js";
 
 const API_BASE = `${BASE_URL}/products`;
+const CATEGORY_API = "http://35.244.11.78:9101/api/category";
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]); // State for dynamic categories
+  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [openDialog, setOpenDialog] = useState(false);
+  const [openProductDialog, setOpenProductDialog] = useState(false);
+  const [openCategoryDialog, setOpenCategoryDialog] = useState(false); // New state for category dialog
   const [editProduct, setEditProduct] = useState(null);
+  const [newCategory, setNewCategory] = useState({ name: "", description: "" }); // State for new category
   const [images, setImages] = useState({});
 
   const token = localStorage.getItem("authToken");
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(`http://35.244.11.78:9101/api/category`, {
+      const response = await axios.get(CATEGORY_API, {
         headers: { Authorization: `Bearer ${token}` },
       });
       console.log("Fetched categories:", response.data);
@@ -61,6 +64,30 @@ const ProductManagement = () => {
       console.log("Fetched products:", response.data);
     } catch (err) {
       console.error("Failed to fetch products:", err);
+    }
+  };
+
+  const createCategory = async () => {
+    try {
+      const response = await axios.post(
+        CATEGORY_API,
+        {
+          name: newCategory.name,
+          description: newCategory.description,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      console.log("Created category:", response.data);
+      fetchCategories(); // Refresh categories
+      setNewCategory({ name: "", description: "" }); // Reset form
+      setOpenCategoryDialog(false); // Close dialog
+    } catch (err) {
+      console.error("Failed to create category:", err.response?.data || err.message);
     }
   };
 
@@ -90,7 +117,7 @@ const ProductManagement = () => {
   useEffect(() => {
     fetchCategories();
     fetchProducts();
-  }, []); // Empty dependency array for one-time fetch on mount
+  }, []);
 
   useEffect(() => {
     if (products.length > 0) {
@@ -133,12 +160,17 @@ const ProductManagement = () => {
     setEditProduct({
       name: "",
       description: "",
-      category: "", // Store category name for UI
+      category: "",
       price: "",
       stock: "",
       imageFile: null,
     });
-    setOpenDialog(true);
+    setOpenProductDialog(true);
+  };
+
+  const handleAddCategory = () => {
+    setNewCategory({ name: "", description: "" });
+    setOpenCategoryDialog(true);
   };
 
   const handleEditProduct = (product) => {
@@ -147,7 +179,7 @@ const ProductManagement = () => {
       category: typeof product.category === "object" ? product.category?.name : product.category,
       imageFile: null,
     });
-    setOpenDialog(true);
+    setOpenProductDialog(true);
   };
 
   const handleDeleteProduct = async (productId) => {
@@ -161,9 +193,14 @@ const ProductManagement = () => {
     }
   };
 
-  const handleDialogClose = () => {
-    setOpenDialog(false);
+  const handleProductDialogClose = () => {
+    setOpenProductDialog(false);
     setEditProduct(null);
+  };
+
+  const handleCategoryDialogClose = () => {
+    setOpenCategoryDialog(false);
+    setNewCategory({ name: "", description: "" });
   };
 
   const handleSaveProduct = async () => {
@@ -179,7 +216,6 @@ const ProductManagement = () => {
     const formData = new FormData();
     formData.append("name", editProduct.name);
     formData.append("description", editProduct.description);
-    // Map category name to categoryId
     const category = categories.find((cat) => cat.name === editProduct.category);
     formData.append("categoryId", category ? category.categoryId : "");
     formData.append("price", editProduct.price);
@@ -191,9 +227,7 @@ const ProductManagement = () => {
 
     try {
       if (editProduct.productId) {
-        // Update product
         await axios.put(`${API_BASE}/${editProduct.productId}`, formData, config);
-        // Update stock if necessary
         if (editProduct.stock !== undefined) {
           await axios.put(
             `${API_BASE}/${editProduct.productId}/stock`,
@@ -207,11 +241,10 @@ const ProductManagement = () => {
           );
         }
       } else {
-        // Create new product
         await axios.post(`${API_BASE}/`, formData, config);
       }
       fetchProducts();
-      handleDialogClose();
+      handleProductDialogClose();
     } catch (err) {
       console.error("Failed to save product:", err.response?.data || err.message);
     }
@@ -272,11 +305,19 @@ const ProductManagement = () => {
         </Select>
         <Button
           variant="contained"
-          color="primary"
+          color="secondary"
           onClick={handleAddProduct}
           sx={{ flex: 1, whiteSpace: "nowrap" }}
         >
           Add Product
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={handleAddCategory}
+          sx={{ flex: 1, whiteSpace: "nowrap" }}
+        >
+          Add Category
         </Button>
       </Box>
 
@@ -360,7 +401,8 @@ const ProductManagement = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={handleDialogClose} fullWidth>
+      {/* Product Dialog */}
+      <Dialog open={openProductDialog} onClose={handleProductDialogClose} fullWidth>
         <DialogTitle>
           {editProduct?.productId ? "Edit Product" : "Add Product"}
         </DialogTitle>
@@ -423,13 +465,49 @@ const ProductManagement = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDialogClose} color="secondary">
+          <Button onClick={handleProductDialogClose} color="secondary">
             Cancel
           </Button>
           <Button
             onClick={handleSaveProduct}
             variant="contained"
             color="primary"
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Category Dialog */}
+      <Dialog open={openCategoryDialog} onClose={handleCategoryDialogClose} fullWidth>
+        <DialogTitle>Add Category</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <TextField
+            label="Category Name"
+            fullWidth
+            value={newCategory.name}
+            onChange={(e) =>
+              setNewCategory({ ...newCategory, name: e.target.value })
+            }
+          />
+          <TextField
+            label="Category Description"
+            fullWidth
+            value={newCategory.description}
+            onChange={(e) =>
+              setNewCategory({ ...newCategory, description: e.target.value })
+            }
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCategoryDialogClose} color="secondary">
+            Cancel
+          </Button>
+          <Button
+            onClick={createCategory}
+            variant="contained"
+            color="primary"
+            disabled={!newCategory.name} // Disable if name is empty
           >
             Save
           </Button>
